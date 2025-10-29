@@ -32,6 +32,29 @@ function App() {
     member_id: '', book_id: ''
   });
 
+  // Edit states
+  const [editingBook, setEditingBook] = useState(null);
+  const [editingMember, setEditingMember] = useState(null);
+  const [editBookForm, setEditBookForm] = useState({
+    title: '', author: '', publisher: '', year_published: '', isbn: '', total_copies: 1
+  });
+  const [editMemberForm, setEditMemberForm] = useState({
+    name: '', email: '', phone: '', address: ''
+  });
+
+  // Phone validation function
+  const validatePhone = (phone) => {
+    // Remove all non-digit characters
+    const cleanPhone = phone.replace(/\D/g, '');
+    return cleanPhone.length <= 10;
+  };
+
+  const handlePhoneChange = (value, setter, formKey) => {
+    // Allow only digits and limit to 10 characters
+    const cleanPhone = value.replace(/\D/g, '').slice(0, 10);
+    setter(prev => ({ ...prev, [formKey]: cleanPhone }));
+  };
+
   // Fetch data functions
   const fetchBooks = async () => {
     try {
@@ -145,6 +168,14 @@ function App() {
     setLoading(true);
     setError('');
     setSuccess('');
+    
+    // Validate phone number
+    if (memberForm.phone.length !== 10) {
+      setError('Phone number must be exactly 10 digits');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const res = await fetch(`${API_BASE}/register`, {
         method: 'POST',
@@ -179,6 +210,7 @@ function App() {
         fetchBooks();
         fetchLoans();
         fetchLoanSummary();
+        fetchReservations(); // Refresh reservations as they might be updated
       }
     } catch (err) {
       setError('Failed to issue book');
@@ -204,6 +236,7 @@ function App() {
         fetchLoans();
         fetchLoanSummary();
         fetchFines();
+        fetchReservations(); // Refresh reservations as they might be updated
       }
     } catch (err) {
       setError('Failed to return book');
@@ -247,6 +280,106 @@ function App() {
       }
     } catch (err) {
       setError('Failed to pay fine');
+    }
+    setLoading(false);
+  };
+
+  // Edit and Delete handlers
+  const handleEditBook = (book) => {
+    setEditingBook(book.book_id);
+    setEditBookForm({
+      title: book.title,
+      author: book.author,
+      publisher: book.publisher,
+      year_published: book.year_published,
+      isbn: book.isbn,
+      total_copies: book.total_copies
+    });
+  };
+
+  const handleUpdateBook = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch(`${API_BASE}/books/${editingBook}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editBookForm)
+      });
+      if (res.ok) {
+        setSuccess('Book updated successfully!');
+        setEditingBook(null);
+        setEditBookForm({ title: '', author: '', publisher: '', year_published: '', isbn: '', total_copies: 1 });
+        fetchBooks();
+      }
+    } catch (err) {
+      setError('Failed to update book');
+    }
+    setLoading(false);
+  };
+
+  const handleEditMember = (member) => {
+    setEditingMember(member.member_id);
+    setEditMemberForm({
+      name: member.name,
+      email: member.email,
+      phone: member.phone,
+      address: member.address
+    });
+  };
+
+  const handleUpdateMember = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    
+    // Validate phone number
+    if (editMemberForm.phone.length !== 10) {
+      setError('Phone number must be exactly 10 digits');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API_BASE}/members/${editingMember}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editMemberForm)
+      });
+      if (res.ok) {
+        setSuccess('Member updated successfully!');
+        setEditingMember(null);
+        setEditMemberForm({ name: '', email: '', phone: '', address: '' });
+        fetchMembers();
+      }
+    } catch (err) {
+      setError('Failed to update member');
+    }
+    setLoading(false);
+  };
+
+  const handleUpdateReservationStatus = async (reservationId, newStatus) => {
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await fetch(`${API_BASE}/reservations/${reservationId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        setSuccess(`Reservation marked as ${newStatus.toLowerCase()}!`);
+        fetchReservations();
+      } else {
+        const errorData = await res.json();
+        setError(errorData.error || 'Failed to update reservation status');
+      }
+    } catch (err) {
+      setError('Failed to update reservation status');
     }
     setLoading(false);
   };
@@ -387,22 +520,92 @@ function App() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Author</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ISBN</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {books.map(book => (
                         <tr key={book.book_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">{book.book_id}</td>
-                          <td className="px-4 py-3 text-sm font-medium">{book.title}</td>
-                          <td className="px-4 py-3 text-sm">{book.author}</td>
-                          <td className="px-4 py-3 text-sm">{book.isbn}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              book.available_copies > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              {book.available_copies}/{book.total_copies}
-                            </span>
-                          </td>
+                          {editingBook === book.book_id ? (
+                            // Edit mode row
+                            <>
+                              <td className="px-4 py-3 text-sm">{book.book_id}</td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={editBookForm.title}
+                                  onChange={(e) => setEditBookForm({ ...editBookForm, title: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={editBookForm.author}
+                                  onChange={(e) => setEditBookForm({ ...editBookForm, author: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={editBookForm.isbn}
+                                  onChange={(e) => setEditBookForm({ ...editBookForm, isbn: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="number"
+                                  value={editBookForm.total_copies}
+                                  onChange={(e) => setEditBookForm({ ...editBookForm, total_copies: e.target.value })}
+                                  className="w-20 px-2 py-1 border rounded text-sm"
+                                  min="1"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={handleUpdateBook}
+                                    className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingBook(null)}
+                                    className="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            // Normal display mode row
+                            <>
+                              <td className="px-4 py-3 text-sm">{book.book_id}</td>
+                              <td className="px-4 py-3 text-sm font-medium">{book.title}</td>
+                              <td className="px-4 py-3 text-sm">{book.author}</td>
+                              <td className="px-4 py-3 text-sm">{book.isbn}</td>
+                              <td className="px-4 py-3 text-sm">
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                  book.available_copies > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {book.available_copies}/{book.total_copies}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleEditBook(book)}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -438,9 +641,13 @@ function App() {
                   />
                   <input
                     type="tel"
-                    placeholder="Phone"
+                    placeholder="Phone (10 digits)"
                     value={memberForm.phone}
-                    onChange={(e) => setMemberForm({ ...memberForm, phone: e.target.value })}
+                    onChange={(e) => handlePhoneChange(e.target.value, setMemberForm, 'phone')}
+                    maxLength="10"
+                    pattern="[0-9]{10}"
+                    title="Please enter exactly 10 digits"
+                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                   <textarea
@@ -472,16 +679,81 @@ function App() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Joined</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {members.map(member => (
                         <tr key={member.member_id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">{member.member_id}</td>
-                          <td className="px-4 py-3 text-sm font-medium">{member.name}</td>
-                          <td className="px-4 py-3 text-sm">{member.email}</td>
-                          <td className="px-4 py-3 text-sm">{member.phone}</td>
-                          <td className="px-4 py-3 text-sm">{new Date(member.membership_date).toLocaleDateString()}</td>
+                          {editingMember === member.member_id ? (
+                            // Edit mode row
+                            <>
+                              <td className="px-4 py-3 text-sm">{member.member_id}</td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="text"
+                                  value={editMemberForm.name}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, name: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="email"
+                                  value={editMemberForm.email}
+                                  onChange={(e) => setEditMemberForm({ ...editMemberForm, email: e.target.value })}
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="tel"
+                                  value={editMemberForm.phone}
+                                  onChange={(e) => handlePhoneChange(e.target.value, setEditMemberForm, 'phone')}
+                                  maxLength="10"
+                                  pattern="[0-9]{10}"
+                                  title="Please enter exactly 10 digits"
+                                  className="w-full px-2 py-1 border rounded text-sm"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-sm">{new Date(member.membership_date).toLocaleDateString()}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={handleUpdateMember}
+                                    className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingMember(null)}
+                                    className="bg-gray-500 text-white px-3 py-1 rounded text-xs hover:bg-gray-600"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            // Normal display mode row
+                            <>
+                              <td className="px-4 py-3 text-sm">{member.member_id}</td>
+                              <td className="px-4 py-3 text-sm font-medium">{member.name}</td>
+                              <td className="px-4 py-3 text-sm">{member.email}</td>
+                              <td className="px-4 py-3 text-sm">{member.phone}</td>
+                              <td className="px-4 py-3 text-sm">{new Date(member.membership_date).toLocaleDateString()}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleEditMember(member)}
+                                    className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-blue-600"
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              </td>
+                            </>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -642,6 +914,7 @@ function App() {
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book ID</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -659,6 +932,30 @@ function App() {
                             }`}>
                               {reservation.status}
                             </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {reservation.status === 'Active' ? (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleUpdateReservationStatus(reservation.reservation_id, 'Completed')}
+                                  disabled={loading}
+                                  className="bg-green-500 text-white px-3 py-1 rounded text-xs hover:bg-green-600 disabled:bg-gray-400"
+                                  title="Mark as Completed"
+                                >
+                                  Complete
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateReservationStatus(reservation.reservation_id, 'Cancelled')}
+                                  disabled={loading}
+                                  className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 disabled:bg-gray-400"
+                                  title="Mark as Cancelled"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">No actions</span>
+                            )}
                           </td>
                         </tr>
                       ))}

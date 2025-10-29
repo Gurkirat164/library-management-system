@@ -238,5 +238,130 @@ app.put("/fines/:fine_id/pay", async (req, res) => {
       }
 });
 
+// Update book details
+app.put("/books/:book_id", async (req, res) => {
+      console.log("PUT /books/:book_id - Processing request...");
+      console.log("Params:", req.params);
+      console.log("Body data:", req.body);
+      
+      const book_id = req.params.book_id;
+      const { title, author, publisher, year_published, isbn, total_copies } = req.body;
+      
+      console.log("Final values:", { book_id, title, author, publisher, year_published, isbn, total_copies });
+      try {
+            // First, get the current total_copies to calculate the difference
+            const [currentBook] = await pool.query(
+                  "SELECT total_copies, available_copies FROM books WHERE book_id = ?",
+                  [book_id]
+            );
+            
+            if (currentBook.length === 0) {
+                  return res.status(404).json({ error: "Book not found" });
+            }
+            
+            const oldTotalCopies = currentBook[0].total_copies;
+            const currentAvailableCopies = currentBook[0].available_copies;
+            const newTotalCopies = parseInt(total_copies);
+            
+            // Calculate the difference in total copies
+            const copyDifference = newTotalCopies - oldTotalCopies;
+            
+            // Calculate new available copies
+            let newAvailableCopies = currentAvailableCopies;
+            if (copyDifference > 0) {
+                  // If total copies increased, add the difference to available copies
+                  newAvailableCopies = currentAvailableCopies + copyDifference;
+            } else if (copyDifference < 0) {
+                  // If total copies decreased, reduce available copies but not below 0
+                  // and not below (total_copies - currently_borrowed)
+                  const currentlyBorrowed = oldTotalCopies - currentAvailableCopies;
+                  const maxPossibleAvailable = newTotalCopies - currentlyBorrowed;
+                  newAvailableCopies = Math.max(0, Math.min(currentAvailableCopies, maxPossibleAvailable));
+            }
+            
+            console.log("Copy calculation:", {
+                  oldTotalCopies,
+                  newTotalCopies,
+                  copyDifference,
+                  currentAvailableCopies,
+                  newAvailableCopies
+            });
+            
+            // Update the book with new values
+            const [result] = await pool.query(
+                  "UPDATE books SET title = ?, author = ?, publisher = ?, year_published = ?, isbn = ?, total_copies = ?, available_copies = ? WHERE book_id = ?",
+                  [title, author, publisher, year_published, isbn, newTotalCopies, newAvailableCopies, book_id]
+            );
+            
+            res.json({ 
+                  message: "Book updated successfully", 
+                  book_id,
+                  copyDifference,
+                  newAvailableCopies 
+            });
+      } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: "Server error" });
+      }
+});
+
+// Update member details
+app.put("/members/:member_id", async (req, res) => {
+      console.log("PUT /members/:member_id - Processing request...");
+      console.log("Params:", req.params);
+      console.log("Body data:", req.body);
+      
+      const member_id = req.params.member_id;
+      const { name, email, phone, address } = req.body;
+      
+      console.log("Final values:", { member_id, name, email, phone, address });
+      try {
+            const [result] = await pool.query(
+                  "UPDATE members SET name = ?, email = ?, phone = ?, address = ? WHERE member_id = ?",
+                  [name, email, phone, address, member_id]
+            );
+            if (result.affectedRows === 0) {
+                  return res.status(404).json({ error: "Member not found" });
+            }
+            res.json({ message: "Member updated successfully", member_id });
+      } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: "Server error" });
+      }
+});
+
+// Update reservation status
+app.put("/reservations/:reservation_id/status", async (req, res) => {
+      console.log("PUT /reservations/:reservation_id/status - Processing request...");
+      console.log("Params:", req.params);
+      console.log("Body data:", req.body);
+      
+      const reservation_id = req.params.reservation_id;
+      const { status } = req.body;
+      
+      // Validate status
+      const validStatuses = ['Active', 'Completed', 'Cancelled'];
+      if (!validStatuses.includes(status)) {
+            return res.status(400).json({ error: "Invalid status. Must be 'Active', 'Completed', or 'Cancelled'" });
+      }
+      
+      console.log("Final values:", { reservation_id, status });
+      try {
+            const [result] = await pool.query(
+                  "UPDATE reservations SET status = ? WHERE reservation_id = ?",
+                  [status, reservation_id]
+            );
+            
+            if (result.affectedRows === 0) {
+                  return res.status(404).json({ error: "Reservation not found" });
+            }
+            
+            res.json({ message: "Reservation status updated successfully", reservation_id, status });
+      } catch (err) {
+            console.error(err);
+            res.status(500).json({ error: "Server error" });
+      }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
