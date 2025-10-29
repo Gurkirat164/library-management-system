@@ -1,0 +1,82 @@
+# =========================
+# Node / React
+# =========================
+node_modules/
+build/
+dist/
+.npm/
+.cache/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# React environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Coverage reports
+coverage/
+
+# Editor and system files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# =========================
+# Python / FastAPI / Flask backend
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.db
+instance/
+.env
+venv/
+env/
+.venv/
+.mypy_cache/
+.pytest_cache/
+*.sqlite3
+
+# =========================
+# Build / Temp / Logs
+# =========================
+*.pid
+*.seed
+*.pid.lock
+tmp/
+temp/
+logs/
+*.log
+
+# =========================
+# OS Files
+# =========================
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# =========================
+# IDE-specific
+# =========================
+*.sublime-workspace
+*.sublime-project
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.old
+*.orig
+*.rej
