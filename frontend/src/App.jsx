@@ -55,6 +55,24 @@ function App() {
     setter(prev => ({ ...prev, [formKey]: cleanPhone }));
   };
 
+  // Helper functions to get names by IDs
+  const getMemberNameById = (memberId) => {
+    const member = members.find(m => m.member_id === memberId);
+    return member ? member.name : `Member ID: ${memberId}`;
+  };
+
+  const getBookTitleById = (bookId) => {
+    const book = books.find(b => b.book_id === bookId);
+    return book ? book.title : `Book ID: ${bookId}`;
+  };
+
+  // ISBN validation function
+  const handleISBNChange = (value, setter, formKey) => {
+    // Allow only digits and limit to reasonable ISBN length
+    const cleanISBN = value.replace(/\D/g, '');
+    setter(prev => ({ ...prev, [formKey]: cleanISBN }));
+  };
+
   // Fetch data functions
   const fetchBooks = async () => {
     try {
@@ -485,9 +503,11 @@ function App() {
                   />
                   <input
                     type="text"
-                    placeholder="ISBN"
+                    placeholder="ISBN (numbers only)"
                     value={bookForm.isbn}
-                    onChange={(e) => setBookForm({ ...bookForm, isbn: e.target.value })}
+                    onChange={(e) => handleISBNChange(e.target.value, setBookForm, 'isbn')}
+                    pattern="[0-9]*"
+                    title="Please enter only numbers"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   />
                   <input
@@ -550,7 +570,9 @@ function App() {
                                 <input
                                   type="text"
                                   value={editBookForm.isbn}
-                                  onChange={(e) => setEditBookForm({ ...editBookForm, isbn: e.target.value })}
+                                  onChange={(e) => handleISBNChange(e.target.value, setEditBookForm, 'isbn')}
+                                  pattern="[0-9]*"
+                                  title="Please enter only numbers"
                                   className="w-full px-2 py-1 border rounded text-sm"
                                 />
                               </td>
@@ -910,8 +932,8 @@ function App() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member ID</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book ID</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member Name</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Book Title</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -921,8 +943,8 @@ function App() {
                       {reservations.map(reservation => (
                         <tr key={reservation.reservation_id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm">{reservation.reservation_id}</td>
-                          <td className="px-4 py-3 text-sm">{reservation.member_id}</td>
-                          <td className="px-4 py-3 text-sm">{reservation.book_id}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{getMemberNameById(reservation.member_id)}</td>
+                          <td className="px-4 py-3 text-sm font-medium">{getBookTitleById(reservation.book_id)}</td>
                           <td className="px-4 py-3 text-sm">{new Date(reservation.reservation_date).toLocaleDateString()}</td>
                           <td className="px-4 py-3 text-sm">
                             <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
